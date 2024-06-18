@@ -170,6 +170,11 @@ typedef struct struct_filter {
     int next_filter, master_filter;
 } SFilter;
 
+typedef struct struct_pmt_vpid_apid_pair {
+    int vpid;
+    int apid;
+} SVpidApidPair;
+
 int register_algo(SCW_op *o);
 int send_cw(int pmt_id, int algo, int parity, uint8_t *cw, uint8_t *iv,
             int64_t expiry, void *opaque);

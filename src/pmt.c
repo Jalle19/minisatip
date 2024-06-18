@@ -1764,27 +1764,44 @@ void pmt_add_descriptors(SPMT *pmt, int stream_id, unsigned char *es, int len) {
     return;
 }
 
-int get_master_pmt_for_pid(adapter *ad, int pid) {
+int get_master_pmt_for_pids(adapter *ad, SVpidApidPair pid_pair) {
     int i, j;
     SPMT *pmt;
     for (i = 0; i < ad->active_pmts; i++) {
         pmt = get_pmt(ad->active_pmt[i]);
         if (pmt && pmt->master_pmt == pmt->id) {
-            DEBUGM("searching pid %d ad %d in pmt %d, active pids %d", pid,
-                   ad->id, pmt->id, pmt->stream_pids);
+            DEBUGM("searching vpid %d apid %d ad %d in pmt %d, active pids %d", pid_pair.vpid,
+                   pid_pair.apid, ad->id, pmt->id, pmt->stream_pids);
+            int vpid_found = 0;
+            int apid_found = 0;
             for (j = 0; j < pmt->stream_pids; j++) {
                 DEBUGM("comparing with pid %d", pmt->stream_pid[j]->pid);
-                if (pmt->stream_pid[j]->pid == pid &&
-                    (pmt->stream_pid[j]->is_video ||
-                     pmt->stream_pid[j]->is_audio)) {
-                    LOGM("%s: ad %d found pid %d in master pmt %d",
-                         __FUNCTION__, ad->id, pid, pmt->master_pmt);
-                    return pmt->master_pmt;
+                if (pmt->stream_pid[j]->pid == pid_pair.vpid) {
+                    LOGM("%s: ad %d found vpid %d in master pmt %d",
+                         __FUNCTION__, ad->id, pid_pair.vpid, pmt->master_pmt);
+                    vpid_found = 1;
                 }
+
+                DEBUGM("comparing with apid %d", pmt->stream_pid[j]->pid);
+                if (pmt->stream_pid[j]->pid == pid_pair.apid) {
+                    LOGM("%s: ad %d found apid %d in master pmt %d",
+                         __FUNCTION__, ad->id, pid_pair.apid, pmt->master_pmt);
+                    apid_found = 1;
+                }
+            }
+
+            // Consider the master PMT a match only if it contains both the VPID and APID we're looking for, 
+            // or if there is no VPID or APID respectively (e.g. for radio channels).
+            if (pid_pair.vpid != -1 && pid_pair.apid != -1 && vpid_found && apid_found) {
+                return pmt->master_pmt;
+            } else if (pid_pair.vpid == -1 && apid_found) {
+                return pmt->master_pmt;
+            } else if (pid_pair.apid == -1 && vpid_found) {
+                return pmt->master_pmt;
             }
         }
     }
-    LOGM("%s: no pmt found for pid %d adapter %d", __FUNCTION__, pid, ad->id);
+    LOGM("%s: no pmt found for vpid %d apid %d adapter %d", __FUNCTION__, pid_pair.vpid, pid_pair.apid, ad->id);
     return -1;
 }
 
@@ -1814,6 +1831,10 @@ int process_pmt(int filter, unsigned char *b, int len, void *opaque) {
     SFilter *f;
     adapter *ad = NULL;
     SPMT *pmt = (void *)opaque;
+    SVpidApidPair pid_pair = {
+        .vpid = -1,
+        .apid = -1
+    };
 
     if (b[0] != 2)
         return 0;
@@ -1878,6 +1899,9 @@ int process_pmt(int filter, unsigned char *b, int len, void *opaque) {
     if (pi_len > 0 && pi_len < pmt_len)
         pmt_add_descriptors(pmt, 0, pi, pi_len);
 
+    int vpid = -1;
+    int apid = -1;
+
     es_len = 0;
     for (i = 9 + pi_len; i < pmt_len - 4; i += (es_len) + 5) // reading streams
     {
@@ -1896,9 +1920,16 @@ int process_pmt(int filter, unsigned char *b, int len, void *opaque) {
             (stype == 2) || (stype == 27) || (stype == 36) || (stype == 15);
         int is_audio = isAC3 || (stype == 3) || (stype == 4) || (stype == 17);
 
-        int stream_pid_id = -1;
-        int opmt = get_master_pmt_for_pid(ad, spid);
+        // Store a pair of video/audio PIDs for this PMT
+        if (is_video && vpid == -1) {
+            pid_pair.vpid = spid;
+        }
 
+        if (is_audio && apid == -1) {
+            pid_pair.apid = spid;
+        }
+
+        int stream_pid_id = -1;
         if (pmt->stream_pids < MAX_PMT_PIDS - 1) {
             stream_pid_id = pmt_add_stream_pid(pmt, spid, stype, is_audio,
                                                is_video, es_len);
@@ -1926,12 +1957,15 @@ int process_pmt(int filter, unsigned char *b, int len, void *opaque) {
             pmt->first_active_pid = spid;
         if (stream_pid_id >= 0)
             pmt_add_descriptors(pmt, stream_pid_id, pmt_b + i + 5, es_len);
-
-        if (opmt != -1 && opmt != pmt->master_pmt) {
-            pmt->master_pmt = opmt;
-            LOG("PMT %d, master pmt set to %d", pmt->id, opmt);
-        }
     }
+
+    // Link PMT to master PMT if video and audio PIDs match
+    int opmt = get_master_pmt_for_pids(ad, pid_pair);
+    if (opmt != -1 && opmt != pmt->master_pmt) {
+        pmt->master_pmt = opmt;
+        LOG("PMT %d, master pmt set to %d", pmt->id, opmt);
+    }
+
     // Add the PCR pid if it's independent
     if (pcr_pid > 0 && pcr_pid < 8191)
         pmt_add_stream_pid(pmt, pcr_pid, 0, 0, 0, 0);
