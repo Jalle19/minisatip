@@ -130,7 +130,6 @@ typedef struct struct_pmt {
     SPMT_batch *batch;
     int8_t parity, update_cw;
     uint64_t last_update_cw;
-    int16_t master_pmt; //  the pmt that contains the same pids as this PMT
     SCW *cw;
     SPid *p;
     char provider[50], name[50];
@@ -216,8 +215,7 @@ int get_pid_filter(int aid, int pid);
 int get_filter_pid(int filter);
 int get_filter_adapter(int filter);
 int assemble_packet(SFilter *f, uint8_t *b);
-void disable_cw(int master_pmt);
-void expire_cw_for_pmt(int master_pmt, int parity, int64_t min_expiry);
+void disable_cw(int pmt_id);
 int pmt_add(int adapter, int sid, int pmt_pid);
 int test_decrypt_packet(SCW *cw, SPMT_batch *start, int len);
 void init_algo();

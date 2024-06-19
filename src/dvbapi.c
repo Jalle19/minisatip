@@ -607,7 +607,7 @@ void send_client_info(sockets *s) {
 
 int send_ecm(int filter_id, unsigned char *b, int len, void *opaque) {
     SKey *k = NULL;
-    SPMT *pmt, *master;
+    SPMT *pmt;
     uint8_t buf[1600];
     int i, pid;
     int filter, demux;
@@ -637,9 +637,6 @@ int send_ecm(int filter_id, unsigned char *b, int len, void *opaque) {
     filter = k->filter[i];
 
     valid_cw = pmt->cw != NULL;
-    master = get_pmt(pmt->master_pmt);
-    if (master)
-        valid_cw = master->cw != NULL;
 
     if ((getTick() - k->last_ecm > 1000) && !valid_cw)
         k->ecm_parity[i] = -1;
