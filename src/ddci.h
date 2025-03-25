@@ -31,7 +31,6 @@ typedef struct ddci_device {
     int max_channels;
     ddci_pmt_t pmt[MAX_CHANNELS_ON_CI + 1];
     int cat_processed;
-    int sdt_filter;
     int capid[MAX_CA_PIDS];
     uint64_t read_index[MAX_ADAPTERS]; // read index per adapter
     uint64_t last_pat, last_sdt, last_pmt;
