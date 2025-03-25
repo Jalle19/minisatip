@@ -145,9 +145,11 @@ int add_pid_mapping_table(int ad, int pid, int pmt, ddci_device_t *d,
     if (add_pid && force_add_pid) {
         m->pid_added = 1;
         mark_pid_add(DDCI_SID, ad, pid);
-        if (pid == 1)
-            m->filter_id =
-                add_filter(ad, 1, (void *)ddci_process_cat, d, FILTER_CRC);
+        if (pid == 1) {
+            m->filter_id = add_filter(ad, 1, (void *)ddci_process_cat, d, FILTER_CRC);
+        } else if(pid == 17) {
+            m->filter_id = add_filter(ad, 17, (void *)ddci_process_sdt, d, FILTER_CRC);
+        }
     }
     if (add_pid) {
         // add the pids to the ddci adapter
@@ -454,6 +456,11 @@ int ddci_process_pmt(adapter *ad, SPMT *pmt) {
         d->cat_processed = 0;
     }
 
+    // if the SDT is not mapped, add it
+    if (!get_pid_mapping(d, pmt->adapter, 17)) {
+        add_pid_mapping_table(ad->id, 17, pmt->id, d, 1);
+    }
+
     LOG("found DDCI %d for pmt %d, running channels %d, max_channels %d", ddid,
         pmt->id, d->channels, d->max_channels);
 
@@ -476,12 +483,6 @@ int ddci_process_pmt(adapter *ad, SPMT *pmt) {
         if (pmt->stream_pid[i]->pid == pmt->pcr_pid) {
             d->pmt[pos].pcr_pid = ddci_pid;
         }
-    }
-
-    // Add SDT filter
-    if (d->sdt_filter == -1) {
-        d->sdt_filter = add_filter(d->id, 17, (void *)ddci_process_sdt, d,
-                                    FILTER_PERMANENT | FILTER_CRC);
     }
 
     update_pids(ad->id);
@@ -1084,6 +1085,7 @@ int ddci_post_init(adapter *ad) {
     s->action = (socket_action)ddci_read_sec_data;
     if (ad->fe_sock >= 0)
         set_socket_thread(ad->fe_sock, get_socket_thread(ad->sock));
+    post_tune(ad);
     if (ddci_id < 0)
         ddci_init();
     return 0;
