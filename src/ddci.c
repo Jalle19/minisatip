@@ -1191,7 +1191,6 @@ int ddci_open_device(adapter *ad) {
     d->last_pmt = d->last_pat = 0;
     d->tid = d->ver = 0;
     d->enabled = 1;
-    d->sdt_filter = -1;
     ad->enabled = 1;
     mutex_unlock(&d->mutex);
     LOG("opened DDCI adapter %d fe:%d dvr:%d", ad->id, ad->fe, ad->dvr);
