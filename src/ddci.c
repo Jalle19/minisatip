@@ -76,6 +76,7 @@ int ddci_id = -1;
 ddci_device_t *ddci_devices[MAX_ADAPTERS];
 
 int ddci_process_cat(int filter, unsigned char *b, int len, void *opaque);
+int ddci_process_sdt(int filter, unsigned char *sdt, int len, void *opaque);
 
 // get mapping from ddci, ddci_pid
 ddci_mapping_table_t *get_ddci_pid(ddci_device_t *d, int dpid) {
@@ -475,6 +476,12 @@ int ddci_process_pmt(adapter *ad, SPMT *pmt) {
         if (pmt->stream_pid[i]->pid == pmt->pcr_pid) {
             d->pmt[pos].pcr_pid = ddci_pid;
         }
+    }
+
+    // Add SDT filter
+    if (d->sdt_filter == -1) {
+        d->sdt_filter = add_filter(d->id, 17, (void *)ddci_process_sdt, d,
+                                    FILTER_PERMANENT | FILTER_CRC);
     }
 
     update_pids(ad->id);
@@ -1077,7 +1084,6 @@ int ddci_post_init(adapter *ad) {
     s->action = (socket_action)ddci_read_sec_data;
     if (ad->fe_sock >= 0)
         set_socket_thread(ad->fe_sock, get_socket_thread(ad->sock));
-    post_tune(ad);
     if (ddci_id < 0)
         ddci_init();
     return 0;
@@ -1258,6 +1264,35 @@ int ddci_process_cat(int filter, unsigned char *b, int len, void *opaque) {
     mutex_unlock(&d->mutex);
     update_pids(f->adapter);
     update_pids(d->id);
+    return 0;
+}
+
+int ddci_process_sdt(int filter, unsigned char *sdt, int len, void *opaque) {
+    if (sdt[0] != 0x42)
+        return 0;
+
+    int i, sdt_len, sid, desc_loop_len, status;
+    SPMT *pmt;
+    unsigned char *b;
+    ddci_device_t *d = (ddci_device_t *)opaque;
+
+    sdt_len = (sdt[1] & 0xF) * 256 + sdt[2];
+    LOG("%s: Processing SDT for DDCI %d, length %d", d->id, sdt_len);
+
+    for (i = 11; i < sdt_len - 1; i += desc_loop_len) {
+        b = sdt + i;
+        sid = b[0] * 256 + b[1];
+        status = b[3] >> 4;
+        desc_loop_len = (b[3] & 0xF) * 256 + b[4];
+        desc_loop_len += 5;
+        pmt = get_all_pmt_for_sid(d->id, sid);
+        LOG("%s: Detected service ID %d (%X) status:%d pos %d len %d",
+               __FUNCTION__, sid, sid, (status >> 1), i, desc_loop_len);
+        if (!pmt) {
+            LOG("%s: no PMT found for sid %d (%X)", __FUNCTION__, sid, sid);
+            continue;
+        }
+    }
     return 0;
 }
 

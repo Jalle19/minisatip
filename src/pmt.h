@@ -232,4 +232,5 @@ int pmt_add_stream_pid(SPMT *pmt, int pid, int type, int is_audio, int is_video,
 void pmt_add_caid(SPMT *pmt, uint16_t caid, uint16_t capid, uint8_t *data,
                   int len);
 void free_all_pmts();
+SPMT *get_all_pmt_for_sid(int aid, int sid);
 #endif
