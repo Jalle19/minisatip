@@ -41,7 +41,6 @@ jobs:
         path: |
           /minisatip_x64.zip
           /minisatip_arm.zip
-          /minisatip_axe.zip
           /minisatip_mips.zip
 
     - name: Bump version and push tag/create release point
