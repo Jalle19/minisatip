@@ -17,12 +17,14 @@ do
         cd $DIR/libdvbcsa 
         ./bootstrap 
         ./configure ${arr[0]}
-        make install 
-        make clean
-	cd $DIR/openssl
-        ./Configure ${arr[1]}
+        make -j $(nproc)
         make install
-        make clean	
+        make clean
+        cd $DIR/openssl
+        ./Configure ${arr[1]}
+        make -j $(nproc)
+        make install
+        make clean
 done
 
 cd $DIR/libnetceiver
