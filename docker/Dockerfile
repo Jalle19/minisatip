@@ -11,7 +11,7 @@ RUN mkdir -p /opt/zig && \
 	cd /opt/zig && \
 	curl -L -s https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz  |  tar xJf - --strip-components=1
 
-# install DVBCSA for ARM ... the other archs have it already in the toolchain
+# build and install some libraries for all toolchains
 COPY build_*.sh .
 RUN ./build_libraries.sh
 
