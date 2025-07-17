@@ -10,12 +10,12 @@ git clone https://github.com/vdr-projects/libnetceiver/
 # Build libdvbcsa
 ./build_libdvbcsa.sh
 ./build_libdvbcsa.sh --host=arm-linux-gnueabihf --prefix=/usr/arm-linux-gnueabihf/
-./build_libdvbcsa.sh --host=mipsel-linux-gnu --prefix=/sysroot/mipsel
+./build_libdvbcsa.sh --host=mipsel-linux-gnu --prefix=/usr/mipsel-linux-gnu/
 
 # Build openssl
 ./build_openssl.sh linux-generic64
 ./build_openssl.sh --cross-compile-prefix=arm-linux-gnueabihf- --prefix=/usr/arm-linux-gnueabihf/ linux-generic32
-./build_openssl.sh --cross-compile-prefix=mipsel-linux-gnu- --prefix=/sysroot/mipsel linux-generic32
+./build_openssl.sh --cross-compile-prefix=mipsel-linux-gnu- --prefix=/usr/mipsel-linux-gnu/ linux-generic32
 
 # Build netceiver
 ./build_netceiver.sh
