@@ -856,11 +856,10 @@ int is_rtsp_http_header(char *buf, int len, const char *start[], int lstart) {
         return 1;
 
     int icl = map_intd(cl + 15, NULL, 0);
+    if (nlnl + icl > buf + len)
+        return 0;
 
-    if (buf + len >= nlnl + icl + 4)
-        return 1;
-
-    return 0;
+    return 1;
 }
 
 int is_rtsp_response(char *buf, int len) {
