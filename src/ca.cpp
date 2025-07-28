@@ -1045,17 +1045,19 @@ static void generate_key_seed(struct cc_ctrl_data *cc_data) {
 
     /* generate new key_seed -> SEK/SAK key derivation */
 
-    SHA256_CTX sha;
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
 
-    SHA256_Init(&sha);
-    SHA256_Update(&sha, &cc_data->dhsk[240], 16);
-    SHA256_Update(&sha, element_get_ptr(cc_data, 22),
+    EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
+    EVP_DigestUpdate(ctx, &cc_data->dhsk[240], 16);
+    EVP_DigestUpdate(ctx, element_get_ptr(cc_data, 22),
                   element_get_buf(cc_data, NULL, 22));
-    SHA256_Update(&sha, element_get_ptr(cc_data, 20),
+    EVP_DigestUpdate(ctx, element_get_ptr(cc_data, 20),
                   element_get_buf(cc_data, NULL, 20));
-    SHA256_Update(&sha, element_get_ptr(cc_data, 21),
+    EVP_DigestUpdate(ctx, element_get_ptr(cc_data, 21),
                   element_get_buf(cc_data, NULL, 21));
-    SHA256_Final(cc_data->ks_host, &sha);
+    EVP_DigestFinal_ex(ctx, cc_data->ks_host, NULL);
+
+    EVP_MD_CTX_free(ctx);
 }
 
 static void generate_ns_host(struct cc_ctrl_data *cc_data)
@@ -1190,15 +1192,16 @@ static int check_ci_certificates(struct cc_ctrl_data *cc_data) {
 
 static int generate_akh(struct cc_ctrl_data *cc_data) {
     uint8_t akh[32];
-    SHA256_CTX sha;
 
-    SHA256_Init(&sha);
-    SHA256_Update(&sha, element_get_ptr(cc_data, 6),
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+
+    EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
+    EVP_DigestUpdate(ctx, element_get_ptr(cc_data, 6),
                   element_get_buf(cc_data, NULL, 6));
-    SHA256_Update(&sha, element_get_ptr(cc_data, 5),
+    EVP_DigestUpdate(ctx, element_get_ptr(cc_data, 5),
                   element_get_buf(cc_data, NULL, 5));
-    SHA256_Update(&sha, cc_data->dhsk, 256);
-    SHA256_Final(akh, &sha);
+    EVP_DigestUpdate(ctx, cc_data->dhsk, 256);
+    EVP_DigestFinal_ex(ctx, akh, NULL);
 
     element_set(cc_data, 22, akh, sizeof(akh));
 
@@ -1320,21 +1323,23 @@ static int restart_dh_challenge(struct cc_ctrl_data *cc_data) {
 
 static int generate_uri_confirm(struct cc_ctrl_data *cc_data,
                                 const uint8_t *sak) {
-    SHA256_CTX sha;
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
     uint8_t uck[32];
     uint8_t uri_confirm[32];
 
     /* calculate UCK (uri confirmation key) */
-    SHA256_Init(&sha);
-    SHA256_Update(&sha, sak, 16);
-    SHA256_Final(uck, &sha);
+    EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
+    EVP_DigestUpdate(ctx, sak, 16);
+    EVP_DigestFinal_ex(ctx, uck, NULL);
 
     /* calculate uri_confirm */
-    SHA256_Init(&sha);
-    SHA256_Update(&sha, element_get_ptr(cc_data, 25),
+    EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
+    EVP_DigestUpdate(ctx, element_get_ptr(cc_data, 25),
                   element_get_buf(cc_data, NULL, 25));
-    SHA256_Update(&sha, uck, 32);
-    SHA256_Final(uri_confirm, &sha);
+    EVP_DigestUpdate(ctx, uck, 32);
+    EVP_DigestFinal_ex(ctx, uri_confirm, NULL);
+
+    EVP_MD_CTX_free(ctx);
 
     element_set(cc_data, 27, uri_confirm, 32);
 
