@@ -34,7 +34,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#if defined(__linux__)
 #include <sys/prctl.h>
+#endif
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -667,7 +669,12 @@ void *select_and_execute(void *arg) {
            sizeof(thread_info[thread_index].thread_name));
     if (arg) {
         safe_strncpy(thread_info[thread_index].thread_name, (char *)arg);
+#if defined(__APPLE__)
+        pthread_setname_np(thread_info[thread_index].thread_name);
+#else
         prctl(PR_SET_NAME, thread_info[thread_index].thread_name, 0, 0, 0);
+#endif
+
     } else
         strcpy(thread_info[thread_index].thread_name, "main");
 

@@ -59,6 +59,11 @@
 #if defined(__APPLE__) || defined(__SH4__)
 #define MAX_RTP_MSG                                                            \
     1 // read 1 UDP datagrams at one time (no recvmmsg() support!)
+struct mmsghdr {
+    struct msghdr msg_hdr;
+    unsigned int  msg_len;
+};
+
 int recvmmsg0(int sockfd, struct mmsghdr *msgvec, unsigned int vlen) {
     if (vlen < 1)
         return 0;
