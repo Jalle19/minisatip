@@ -82,9 +82,13 @@ SPMT *create_pmt(int ad, int sid, int pid1, int pid2, int caid1, int caid2) {
     pmt_add_stream_pid(pmt, pid2, 6, true, false);
     pmt_add_caid(pmt, caid1, caid1, NULL, 0);
     pmt_add_caid(pmt, caid2, caid2, NULL, 0);
+    pmt->descriptors.push_back(create_ca_descriptor(caid1, caid1));
+    pmt->descriptors.push_back(create_ca_descriptor(caid2, caid2));
+
     // Add a CA descriptor to the second stream PID so we can test that it
     // gets added to the PMT correctly
-    pmt->stream_pids[1].descriptors.push_back(create_ca_descriptor(0x0B00, 0x0573));
+    pmt->stream_pids[1].descriptors.push_back(
+        create_ca_descriptor(0x0B00, 0x0573));
 
     return pmt;
 }
@@ -199,7 +203,7 @@ int test_add_del_pmt() {
     c->ddci[c->ddcis++].ddci = 1;
 
     pmt_add_stream_pid(pmt2, 0xFF, 2, false, true);
-    pmt_add_caid(pmt2, 0x502, 0xFE, NULL, 0);
+    pmt2->descriptors.push_back(create_ca_descriptor(0x502, 0xFE));
 
     ASSERT(ddci_process_pmt(&ad, pmt2) == TABLES_RESULT_OK,
            "DDCI matching DD 0 for second PMT");
@@ -531,6 +535,8 @@ int test_create_pmt() {
     if (new_capid != dcapid)
         LOG_AND_RETURN(1, "PMT PSI pid %04X != mapping table pid %04X",
                        new_capid, dcapid);
+
+    // TODO: Verify PMT program info contains descriptors
 
     // Verify stream PID descriptors
     int es_info_len = packet[38];

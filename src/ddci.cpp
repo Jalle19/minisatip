@@ -440,9 +440,12 @@ int ddci_process_pmt(adapter *ad, SPMT *pmt) {
     set_pid_rewrite(d, ad->id, pmt->pid,
                     0); // do not send the PMT pid to the DDCI device
 
-    for (i = 0; i < pmt->caids; i++) {
-        LOGM("DD %d adding ECM pid %d", d->id, pmt->ca[i]->pid);
-        add_pid_mapping_table(ad->id, pmt->ca[i]->pid, pmt->id, d, 1);
+    for (const auto &descr : pmt->descriptors) {
+        if (descr.is_ca_descriptor()) {
+            uint16_t capid = descr.get_ca_descriptor_capid();
+            LOGM("DD %d adding program level ECM pid %d", d->id, capid);
+            add_pid_mapping_table(ad->id, capid, pmt->id, d, 1);
+        }
     }
 
     for (const auto &stream_pid : pmt->stream_pids) {
@@ -454,6 +457,14 @@ int ddci_process_pmt(adapter *ad, SPMT *pmt) {
         // map the PCR pid as well
         if (stream_pid.pid == pmt->pcr_pid) {
             d->pmt[pos].pcr_pid = ddci_pid;
+        }
+
+        for (const auto &descr : stream_pid.descriptors) {
+            if (descr.is_ca_descriptor()) {
+                uint16_t capid = descr.get_ca_descriptor_capid();
+                LOGM("DD %d adding stream level ECM pid %d", d->id, capid);
+                add_pid_mapping_table(ad->id, capid, pmt->id, d, 1);
+            }
         }
     }
 
@@ -693,7 +704,7 @@ int safe_get_pid_mapping(ddci_device_t *d, int aid, int pid) {
 
 int ddci_create_pmt(ddci_device_t *d, SPMT *pmt, uint8_t *new_pmt, int pmt_size,
                     ddci_pmt_t *dp) {
-    int pid = pmt->pid, pi_len = 0, i;
+    int pid = pmt->pid, pi_len = 0;
     uint8_t *b = new_pmt, *start_pmt, *start_pi_len;
     memset(new_pmt, 0, pmt_size);
 
@@ -719,23 +730,31 @@ int ddci_create_pmt(ddci_device_t *d, SPMT *pmt, uint8_t *new_pmt, int pmt_size,
          __FUNCTION__, pmt->id, pmt->adapter, pid, pid, dp->ver, pmt->sid,
          pmt->sid, pmt->name[0] ? "channel:" : "", pmt->name);
 
-    // Add CA IDs and CA Pids
-    for (i = 0; i < pmt->caids; i++) {
-        int private_data_len = pmt->ca[i]->private_data_len;
-        *b++ = 0x09;
-        *b++ = 0x04 + private_data_len;
-        copy16(b, 0, pmt->ca[i]->id);
-        copy16(b, 2, safe_get_pid_mapping(d, pmt->adapter, pmt->ca[i]->pid));
-        memcpy(b + 4, pmt->ca[i]->private_data, private_data_len);
-        pi_len += 6 + private_data_len;
-        b += 4 + private_data_len;
-        LOGM("%s: pmt %d added caid %04X, pid %04X", __FUNCTION__, pmt->id,
-             pmt->ca[i]->id, pmt->ca[i]->pid);
+    // Add program info
+    uint8_t *d_start;
+    for (const auto &descr : pmt->descriptors) {
+        *b++ = descr.type;
+        *b++ = descr.len;
+        d_start = b;
+        memcpy(b, descr.data.data(), descr.len);
+        b += descr.len;
+
+        // Perform mapping for PIDs in CA descriptors
+        if (descr.is_ca_descriptor()) {
+            LOGM("%s: pmt %d added caid %04X, pid %04X", __FUNCTION__, pmt->id,
+                 descr.get_ca_descriptor_caid(),
+                 descr.get_ca_descriptor_capid());
+            copy16(d_start, 2,
+                   safe_get_pid_mapping(d, pmt->adapter,
+                                        descr.get_ca_descriptor_capid()));
+        }
+
+        pi_len += descr.len + 2;
     }
+
     copy16(start_pi_len, 0, pi_len);
 
-    // Add Stream pids
-    // Add CA IDs and CA Pids
+    // Add stream pids
     for (const auto &stream_pid : pmt->stream_pids) {
         if (get_ca_multiple_pmt(d->id)) {
             // Do not map any pids that are not requested by the client
