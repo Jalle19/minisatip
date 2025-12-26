@@ -54,7 +54,6 @@ void close_pmt_for_ca(int i, adapter *ad, SPMT *pmt);
 int close_pmt_for_cas(adapter *ad, SPMT *pmt);
 void tables_ca_ts(adapter *ad);
 int match_caid(SPMT *pmt, int caid, int mask);
-int match_ca_caid(int ica, int aid, int caid);
 
 #endif
 

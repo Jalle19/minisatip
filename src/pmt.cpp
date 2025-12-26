@@ -2126,16 +2126,9 @@ int pmt_tune(adapter *ad) {
     return 0;
 }
 
-int pmt_add_ca_descriptor(SPMT *pmt, uint8_t *buf, int ca_id) {
+int pmt_add_ca_descriptor(SPMT *pmt, uint8_t *buf) {
     int i, len = 0;
     for (i = 0; i < pmt->caids; i++) {
-#ifndef DISABLE_TABLES
-        if (!match_ca_caid(ca_id, pmt->adapter, pmt->ca[i]->id)) {
-            DEBUGM("SCA %d cannot handle CAID %04X, skipping", ca_id,
-                   pmt->ca[i]->id);
-            continue;
-        }
-#endif
         int private_data_len = pmt->ca[i]->private_data_len;
         buf[len] = 0x09;
         buf[len + 1] = 0x04 + private_data_len;
